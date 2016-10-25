@@ -10,7 +10,12 @@ from time import sleep
 
 ##configuration parameters
 router_queue_size = 0 #0 means unlimited
-simulation_time = 1 #give the network sufficient time to transfer all packets before quitting
+simulation_time = 2 #give the network sufficient time to transfer all packets before quitting
+
+# Routing tables
+# List of dictionaries, where each dictionary is the table for a router, key is source, value is output interface
+# 0th Index: Router A, 1st Index: Router B, 2nd Index: Router C, 3rd Index: Router D
+forwarding_tables = [{1:0, 2:1},{1:0},{2:0},{1:0,2:0}]
 
 if __name__ == '__main__':
     object_L = [] #keeps track of objects, so we can kill their threads
@@ -22,19 +27,20 @@ if __name__ == '__main__':
     object_L.append(client2)
     client3 = network_3.Host(3)
     object_L.append(client3)
-    router_a = network_3.Router(name='A', intf_count=2, max_queue_size=router_queue_size)
+    router_a = network_3.Router(name='A', intf_count=2, max_queue_size=router_queue_size, forwarding_table=forwarding_tables[0])
     object_L.append(router_a)
-    router_b = network_3.Router(name='B', intf_count=1, max_queue_size=router_queue_size)
+    router_b = network_3.Router(name='B', intf_count=1, max_queue_size=router_queue_size, forwarding_table=forwarding_tables[1])
     object_L.append(router_b)
-    router_c = network_3.Router(name='C', intf_count=1, max_queue_size=router_queue_size)
+    router_c = network_3.Router(name='C', intf_count=1, max_queue_size=router_queue_size, forwarding_table=forwarding_tables[2])
     object_L.append(router_c)
-    router_d = network_3.Router(name='D', intf_count=2, max_queue_size=router_queue_size)
+    router_d = network_3.Router(name='D', intf_count=2, max_queue_size=router_queue_size, forwarding_table=forwarding_tables[3])
     object_L.append(router_d)
     
     #create a Link Layer to keep track of links between network nodes
     link_layer = link_3.LinkLayer()
     object_L.append(link_layer)
-    
+
+
     #add all the links
     link_layer.add_link(link_3.Link(client1, 0, router_a, 0, 50))
     link_layer.add_link(link_3.Link(client2, 0, router_a, 1, 50))
@@ -64,8 +70,8 @@ if __name__ == '__main__':
     
     #create some send events    
     for i in range(3):
-        client1.udt_send(2, 'Host_1 data %d' % i)
-        client2.udt_send(2, 'Host_2 data %d' % i)
+        client1.udt_send(3, 'Host_1 data %d' % i)
+        client2.udt_send(3, 'Host_2 data %d' % i)
     
     
     #give the network sufficient time to transfer all packets before quitting

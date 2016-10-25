@@ -34,10 +34,12 @@ class Interface:
 class NetworkPacket:
     ## packet encoding lengths 
     dst_addr_S_length = 5
+    src_addr_S_length = 5
 
     ##@param dst_addr: address of the destination host
     # @param data_S: packet payload
-    def __init__(self, dst_addr, data_S):
+    def __init__(self, src_addr, dst_addr, data_S):
+        self.src_addr = src_addr
         self.dst_addr = dst_addr
         self.data_S = data_S
 
@@ -47,7 +49,7 @@ class NetworkPacket:
 
     ## convert packet to a byte string for transmission over links
     def to_byte_S(self):
-        byte_S = str(self.dst_addr).zfill(self.dst_addr_S_length)
+        byte_S = str(self.src_addr).zfill(self.src_addr_S_length)+str(self.dst_addr).zfill(self.dst_addr_S_length)
         byte_S += self.data_S
         return byte_S
 
@@ -55,9 +57,10 @@ class NetworkPacket:
     # @param byte_S: byte string representation of the packet
     @classmethod
     def from_byte_S(self, byte_S):
-        dst_addr = int(byte_S[0: NetworkPacket.dst_addr_S_length])
-        data_S = byte_S[NetworkPacket.dst_addr_S_length:]
-        return self(dst_addr, data_S)
+        src_addr = int(byte_S[0: NetworkPacket.src_addr_S_length])
+        dst_addr = int(byte_S[NetworkPacket.src_addr_S_length: NetworkPacket.src_addr_S_length+NetworkPacket.dst_addr_S_length])
+        data_S = byte_S[NetworkPacket.src_addr_S_length + NetworkPacket.dst_addr_S_length:]
+        return self(src_addr, dst_addr, data_S)
 
 
 ## Implements a network host for receiving and transmitting data
@@ -77,7 +80,7 @@ class Host:
     # @param dst_addr: destination address for the packet
     # @param data_S: data being transmitted to the network layer
     def udt_send(self, dst_addr, data_S):
-        p = NetworkPacket(dst_addr, data_S)
+        p = NetworkPacket(self.addr, dst_addr, data_S)
         self.out_intf_L[0].put(p.to_byte_S())  # send packets always enqueued successfully
         print('%s: sending packet "%s"' % (self, p))
 
@@ -104,12 +107,13 @@ class Router:
     ##@param name: friendly router name for debugging
     # @param intf_count: the number of input and output interfaces 
     # @param max_queue_size: max queue length (passed to Interface)
-    def __init__(self, name, intf_count, max_queue_size):
+    def __init__(self, name, intf_count, max_queue_size, forwarding_table):
         self.stop = False  # for thread termination
         self.name = name
         # create a list of interfaces
         self.in_intf_L = [Interface(max_queue_size) for _ in range(intf_count)]
         self.out_intf_L = [Interface(max_queue_size) for _ in range(intf_count)]
+        self.forwarding_table = forwarding_table
 
     ## called when printing the object
     def __str__(self):
@@ -126,11 +130,10 @@ class Router:
                 # if packet exists make a forwarding decision
                 if pkt_S is not None:
                     p = NetworkPacket.from_byte_S(pkt_S)  # parse a packet out
-                    # HERE you will need to implement a lookup into the 
-                    # forwarding table to find the appropriate outgoing interface
-                    # for now we assume the outgoing interface is also i
-                    self.out_intf_L[i].put(p.to_byte_S(), True)
-                    print('%s: forwarding packet "%s" from interface %d to %d' % (self, p, i, i))
+                    source = p.src_addr
+                    out_interface = self.forwarding_table[source]
+                    self.out_intf_L[out_interface].put(p.to_byte_S(), True)
+                    print('%s: forwarding packet "%s" from source host %d to interface %d' % (self, p, source, out_interface))
             except queue.Full:
                 print('%s: packet "%s" lost on interface %d' % (self, p, i))
                 pass
