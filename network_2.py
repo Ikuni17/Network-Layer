@@ -54,10 +54,23 @@ class NetworkPacket:
     ## convert packet to a byte string for transmission over links
     def to_byte_S(self):
         byte_S = str(self.dst_addr).zfill(self.dst_addr_S_length)
+        # byte_S += str(self.flag).zfill(self.flag_S_length)
+        # byte_S += str(self.offset).zfill(self.offset_S_length)
+        byte_S += self.data_S
+        return byte_S
+
+    def to_byte_SFrag(self):
+        byte_S = str(self.dst_addr).zfill(self.dst_addr_S_length)
         byte_S += str(self.flag).zfill(self.flag_S_length)
         byte_S += str(self.offset).zfill(self.offset_S_length)
         byte_S += self.data_S
         return byte_S
+
+    @classmethod
+    def is_fragment(self, byte_S):
+        if byte_S[self.dst_addr_S_length] is '1':
+            return True
+        return False
 
     ## extract a packet object from a byte string
     # @param byte_S: byte string representation of the packet
@@ -69,11 +82,13 @@ class NetworkPacket:
 
         # Fragment
         offset_size = 0
-        while(len(data_S) > mtu):
-            frag_flag = 1 if len(data_S) > mtu else 0
-            offset_size = offset_size + len(data_S[offset_size:])
+        while True:
+            frag_flag = 1 if self.header_length + len(data_S[offset_size:]) > mtu else 0
             # self(dst_addr, data_S, 1)
-            packets.append(self(dst_addr, data_S[offset_size:], frag_flag, offset_size))
+            packets.append(self(dst_addr, data_S[offset_size:offset_size + mtu - self.header_length], frag_flag, offset_size))
+            offset_size = offset_size + mtu - self.header_length
+            if len(data_S[offset_size:]) == 0:
+                break
         return packets
 
 
@@ -108,10 +123,14 @@ class Host:
             print('%s: sending packet "%s"' % (self, p))
 
     ## receive packet from the network layer
+    frag_buffer = []
     def udt_receive(self):
         pkt_S = self.in_intf_L[0].get()
         if pkt_S is not None:
-            print('%s: received packet "%s"' % (self, pkt_S))
+            self.frag_buffer.append(pkt_S[NetworkPacket.header_length:])
+            if not NetworkPacket.is_fragment(pkt_S):
+                print('%s: received packet "%s"' % (self, ''.join(self.frag_buffer)))
+                self.frag_buffer.clear()
 
     ## thread target for the host to keep receiving data
     def run(self):
@@ -157,7 +176,7 @@ class Router:
                     # forwarding table to find the appropriate outgoing interface
                     # for now we assume the outgoing interface is also i
                     for p in packets:
-                        self.out_intf_L[i].put(p.to_byte_S(), True)
+                        self.out_intf_L[i].put(p.to_byte_SFrag(), True)
                         print('%s: forwarding packet "%s" from interface %d to %d' % (self, p, i, i))
             except queue.Full:
                 print('%s: packet "%s" lost on interface %d' % (self, p, i))
