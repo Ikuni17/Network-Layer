@@ -70,10 +70,10 @@ class NetworkPacket:
         # Fragment
         offset_size = 0
         while True:
-            frag_flag = 1 if len(data_S[offset_size:]) > mtu else 0
+            frag_flag = 1 if self.header_length + len(data_S[offset_size:]) > mtu else 0
             # self(dst_addr, data_S, 1)
-            packets.append(self(dst_addr, data_S[offset_size:offset_size + mtu], frag_flag, offset_size))
-            offset_size = offset_size + mtu
+            packets.append(self(dst_addr, data_S[offset_size:offset_size + mtu - self.header_length], frag_flag, offset_size))
+            offset_size = offset_size + mtu - self.header_length
             if len(data_S[offset_size:]) == 0:
                 break
         return packets
