@@ -34,12 +34,18 @@ class Interface:
 class NetworkPacket:
     ## packet encoding lengths
     dst_addr_S_length = 5
+    flag_S_length = 1
+    offset_S_length = 2
+    header_length = dst_addr_S_length + flag_S_length + offset_S_length
+
 
     ##@param dst_addr: address of the destination host
     # @param data_S: packet payload
-    def __init__(self, dst_addr, data_S):
+    def __init__(self, dst_addr, data_S, flag=0, offset=0):
         self.dst_addr = dst_addr
         self.data_S = data_S
+        self.flag = flag
+        self.offset = offset
 
     ## called when printing the object
     def __str__(self):
@@ -48,16 +54,27 @@ class NetworkPacket:
     ## convert packet to a byte string for transmission over links
     def to_byte_S(self):
         byte_S = str(self.dst_addr).zfill(self.dst_addr_S_length)
+        byte_S += str(self.flag).zfill(self.flag_S_length)
+        byte_S += str(self.offset).zfill(self.offset_S_length)
         byte_S += self.data_S
         return byte_S
 
     ## extract a packet object from a byte string
     # @param byte_S: byte string representation of the packet
     @classmethod
-    def from_byte_S(self, byte_S):
+    def from_byte_S(self, byte_S, mtu):
+        packets = []
         dst_addr = int(byte_S[0: NetworkPacket.dst_addr_S_length])
         data_S = byte_S[NetworkPacket.dst_addr_S_length:]
-        return self(dst_addr, data_S)
+
+        # Fragment
+        offset_size = 0
+        while(len(data_S) > mtu):
+            frag_flag = 1 if len(data_S) > mtu else 0
+            offset_size = offset_size + len(data_S[offset_size:])
+            # self(dst_addr, data_S, 1)
+            packets.append(self(dst_addr, data_S[offset_size:], frag_flag, offset_size))
+        return packets
 
 
 ## Implements a network host for receiving and transmitting data
@@ -127,6 +144,7 @@ class Router:
     ## look through the content of incoming interfaces and forward to
     # appropriate outgoing interfaces
     def forward(self):
+        mtu = 30
         for i in range(len(self.in_intf_L)):
             pkt_S = None
             try:
@@ -134,12 +152,13 @@ class Router:
                 pkt_S = self.in_intf_L[i].get()
                 # if packet exists make a forwarding decision
                 if pkt_S is not None:
-                    p = NetworkPacket.from_byte_S(pkt_S)  # parse a packet out
+                    packets = NetworkPacket.from_byte_S(pkt_S, mtu)  # parse a packet out
                     # HERE you will need to implement a lookup into the
                     # forwarding table to find the appropriate outgoing interface
                     # for now we assume the outgoing interface is also i
-                    self.out_intf_L[i].put(p.to_byte_S(), True)
-                    print('%s: forwarding packet "%s" from interface %d to %d' % (self, p, i, i))
+                    for p in packets:
+                        self.out_intf_L[i].put(p.to_byte_S(), True)
+                        print('%s: forwarding packet "%s" from interface %d to %d' % (self, p, i, i))
             except queue.Full:
                 print('%s: packet "%s" lost on interface %d' % (self, p, i))
                 pass
