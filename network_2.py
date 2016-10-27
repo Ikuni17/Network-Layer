@@ -59,6 +59,13 @@ class NetworkPacket:
         byte_S += self.data_S
         return byte_S
 
+    def to_byte_SFrag(self):
+        byte_S = str(self.dst_addr).zfill(self.dst_addr_S_length)
+        byte_S += str(self.flag).zfill(self.flag_S_length)
+        byte_S += str(self.offset).zfill(self.offset_S_length)
+        byte_S += self.data_S
+        return byte_S
+
     ## extract a packet object from a byte string
     # @param byte_S: byte string representation of the packet
     @classmethod
@@ -159,7 +166,7 @@ class Router:
                     # forwarding table to find the appropriate outgoing interface
                     # for now we assume the outgoing interface is also i
                     for p in packets:
-                        self.out_intf_L[i].put(p.to_byte_S(), True)
+                        self.out_intf_L[i].put(p.to_byte_SFrag(), True)
                         print('%s: forwarding packet "%s" from interface %d to %d' % (self, p, i, i))
             except queue.Full:
                 print('%s: packet "%s" lost on interface %d' % (self, p, i))
