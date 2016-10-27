@@ -54,8 +54,8 @@ class NetworkPacket:
     ## convert packet to a byte string for transmission over links
     def to_byte_S(self):
         byte_S = str(self.dst_addr).zfill(self.dst_addr_S_length)
-        byte_S += str(self.flag).zfill(self.flag_S_length)
-        byte_S += str(self.offset).zfill(self.offset_S_length)
+        # byte_S += str(self.flag).zfill(self.flag_S_length)
+        # byte_S += str(self.offset).zfill(self.offset_S_length)
         byte_S += self.data_S
         return byte_S
 
@@ -69,11 +69,13 @@ class NetworkPacket:
 
         # Fragment
         offset_size = 0
-        while(len(data_S) > mtu):
-            frag_flag = 1 if len(data_S) > mtu else 0
-            offset_size = offset_size + len(data_S[offset_size:])
+        while True:
+            frag_flag = 1 if len(data_S[offset_size:]) > mtu else 0
             # self(dst_addr, data_S, 1)
-            packets.append(self(dst_addr, data_S[offset_size:], frag_flag, offset_size))
+            packets.append(self(dst_addr, data_S[offset_size:offset_size + mtu], frag_flag, offset_size))
+            offset_size = offset_size + mtu
+            if len(data_S[offset_size:]) == 0:
+                break
         return packets
 
 
