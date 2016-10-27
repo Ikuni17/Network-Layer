@@ -177,7 +177,7 @@ class Router:
                     # for now we assume the outgoing interface is also i
                     for p in packets:
                         self.out_intf_L[i].put(p.to_byte_SFrag(), True)
-                        print('%s: forwarding packet "%s" from interface %d to %d' % (self, p, i, i))
+                        print('%s: forwarding packet "%s" from interface %d to %d' % (self, p.to_byte_SFrag(), i, i))
             except queue.Full:
                 print('%s: packet "%s" lost on interface %d' % (self, p, i))
                 pass
