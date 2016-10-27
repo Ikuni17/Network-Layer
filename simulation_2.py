@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     # add all the links
     link_layer.add_link(link_2.Link(client, 0, router_a, 0, 50))
-    link_layer.add_link(link_2.Link(router_a, 0, server, 0, 50))
+    link_layer.add_link(link_2.Link(router_a, 0, server, 0, 30))
 
     # start all the objects
     thread_L = []
