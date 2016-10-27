@@ -66,6 +66,12 @@ class NetworkPacket:
         byte_S += self.data_S
         return byte_S
 
+    @classmethod
+    def is_fragment(self, byte_S):
+        if byte_S[self.dst_addr_S_length] is '1':
+            return True
+        return False
+
     ## extract a packet object from a byte string
     # @param byte_S: byte string representation of the packet
     @classmethod
@@ -117,10 +123,14 @@ class Host:
             print('%s: sending packet "%s"' % (self, p))
 
     ## receive packet from the network layer
+    frag_buffer = []
     def udt_receive(self):
         pkt_S = self.in_intf_L[0].get()
         if pkt_S is not None:
-            print('%s: received packet "%s"' % (self, pkt_S))
+            self.frag_buffer.append(pkt_S[NetworkPacket.header_length:])
+            if not NetworkPacket.is_fragment(pkt_S):
+                print('%s: received packet "%s"' % (self, ''.join(self.frag_buffer)))
+                self.frag_buffer.clear()
 
     ## thread target for the host to keep receiving data
     def run(self):
